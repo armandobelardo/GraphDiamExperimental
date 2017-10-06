@@ -10,8 +10,18 @@
 using namespace std;
 
 namespace {
+  vector <vector<int> > GenPath(int pathlen) {
+    vector <vector<int> > path;
+    for (int i = 0; i < pathlen; i++) {
+      path.push_back({i+1});
+    }
+    return path;
+  }
+
+  // TODO(iamabel): Make graph choice a command line option
   const vector <vector<int> > adjlist = {{1,2}, {0,2}, {0,1,3}, {}};
   // const vector <vector<int> > adjlist = {{1,4}, {2, 4}, {1,3}, {2}, {1}};
+  // const vector <vector<int> > adjlist = GenPath(1000);
 
   double GetTime() {
     struct timeval tv;

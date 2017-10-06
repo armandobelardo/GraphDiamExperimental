@@ -34,9 +34,9 @@ namespace {
     return height;
   }
 
-  // vector<vector<int> > Transpose(const vector <vector<int> > &adjlist) {
-  //   return adjlist;
-  // }
+  vector<vector<int> > Transpose(const vector <vector<int> > &adjlist) {
+    return adjlist;
+  }
 } // end namespace
 
 namespace Diameter {
