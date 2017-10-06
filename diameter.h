@@ -9,10 +9,10 @@
 using namespace std;
 
 namespace Diameter {
-  int GetBruteDiam(const vector <pair<int,int> > &edges);
+  int GetBruteDiam(const vector <vector<int> > &adjlist);
 
-  int GetFastDiam(const vector <pair<int,int> > &edges);
+  int GetFastDiam(const vector <vector<int> > &adjlist);
 
-  void PrintGraph(const vector <pair<int,int> > &edges);
+  void PrintGraph(const vector <vector<int> > &adjlist);
 } // end namespace Diameter
 # endif
