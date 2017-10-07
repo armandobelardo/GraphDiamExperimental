@@ -88,7 +88,6 @@ namespace Diameter {
             while (!dfs.empty()) {
                 int v = dfs.top().first;
                 int index = dfs.top().second;
-
                 dfs.pop();
 
                 if (index == -1) {
@@ -98,7 +97,6 @@ namespace Diameter {
                 } else {
                     low[v] = min(low[v], low[adjlist[v][index]]);
                 }
-
                 for (index++; index < (int)adjlist[v].size(); index++) {
                     int w = adjlist[v][index];
 
@@ -110,7 +108,6 @@ namespace Diameter {
                         low[v] = min(low[v], ord[w]);
                     }
                 }
-
                 if (index == (int)adjlist[v].size() && low[v] == ord[v]) {
                     while (true) {
                         int w = s.top();
@@ -121,13 +118,12 @@ namespace Diameter {
 
                         if (v == w) break;
                     }
-
                     num_scc++;
                 }
             }
         }
     }
-
+    
     // Compute the diameter lower bound by the double sweep algorithm
     int qs, qt;
     vector <int> dist(V, -1);
@@ -276,7 +272,6 @@ namespace Diameter {
             for (int j = 0; j < qt; j++) dist[queue[j]] = -1;
         }
     }
-
     return diameter;
   }
 

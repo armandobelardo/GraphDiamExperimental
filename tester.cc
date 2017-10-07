@@ -15,13 +15,16 @@ namespace {
     for (int i = 0; i < pathlen; i++) {
       path.push_back({i+1});
     }
+    path.push_back({}); // in path last vertex has no edges
     return path;
   }
 
+  // Note that if a vertex has no neighbors we must include an empty vector
+  // since we use index in outer vector to determine vertex number.
   // TODO(iamabel): Make graph choice a command line option
-  const vector <vector<int> > adjlist = {{1,2}, {0,2}, {0,1,3}, {}};
+  // const vector <vector<int> > adjlist = {{1,2}, {0,2}, {0,1,3}, {}};
   // const vector <vector<int> > adjlist = {{1,4}, {2, 4}, {1,3}, {2}, {1}};
-  // const vector <vector<int> > adjlist = GenPath(1000);
+  const vector <vector<int> > adjlist = GenPath(1000);
 
   double GetTime() {
     struct timeval tv;
