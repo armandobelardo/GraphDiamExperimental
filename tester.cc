@@ -23,8 +23,8 @@ namespace {
   // since we use index in outer vector to determine vertex number.
   // TODO(iamabel): Make graph choice a command line option
   // const vector <vector<int> > adjlist = {{1,2}, {0,2}, {0,1,3}, {}};
-  // const vector <vector<int> > adjlist = {{1,4}, {2, 4}, {1,3}, {2}, {1}};
-  const vector <vector<int> > adjlist = GenPath(1000);
+  const vector <vector<int> > adjlist = {{1,4}, {2, 4}, {1,3}, {2}, {1}};
+  // const vector <vector<int> > adjlist = GenPath(1000);
 
   double GetTime() {
     struct timeval tv;
@@ -64,9 +64,11 @@ int main(int argc, char** argv) {
 
   // Return of format (diameter, average time)
   const pair<int, double> fast_diam_time =
-                                    RunTrials(&Diameter::GetFastDiam, trials);
+                                RunTrials(&Diameter::GetFastDiam, trials);
   const pair<int, double> brute_diam_time =
-                                    RunTrials(&Diameter::GetBruteDiam, trials);
+                                RunTrials(&Diameter::GetBruteDiam, trials);
+  const pair<int, double> less_brute_diam_time =
+                                RunTrials(&Diameter::GetPaperMyBFSDiam, trials);
 
   printf("Our graph has edges:\n");
   Diameter::PrintGraph(adjlist);
@@ -75,12 +77,16 @@ int main(int argc, char** argv) {
          " the diameter of the graph is: %d \n", fast_diam_time.first);
   printf("A trivial, yet exact, solution says"
          " the diameter of the graph is: %d \n", brute_diam_time.first);
+  printf("A trivial, yet exact, solution says"
+         " the diameter of the graph is: %d \n", less_brute_diam_time.first);
   printf("Both results were the same: %s\n",
          fast_diam_time.first == brute_diam_time.first ? "true" : "false");
-  printf("This brute force operation was completed in:    %f seconds \n",
+  printf("This brute force operation was completed in:                      %f seconds \n",
          brute_diam_time.second);
-  printf("This operation from the paper was completed in: %f seconds \n",
+  printf("This operation from the paper was completed in:                   %f seconds \n",
          fast_diam_time.second);
+  printf("This operation from the paper (with modded BFS) was completed in: %f seconds \n",
+         less_brute_diam_time.second);
 
 
   return 0;
