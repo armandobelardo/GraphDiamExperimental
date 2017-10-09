@@ -21,10 +21,19 @@ namespace {
 
   // Note that if a vertex has no neighbors we must include an empty vector
   // since we use index in outer vector to determine vertex number.
-  // TODO(iamabel): Make graph choice a command line option
-  // const vector <vector<int> > adjlist = {{1,2}, {0,2}, {0,1,3}, {}};
-  // const vector <vector<int> > adjlist = {{1,4}, {2, 4}, {1,3}, {2}, {1}};
-  const vector <vector<int> > adjlist = GenPath(1000);
+  vector <vector<int> > GenGraph(vector <pair<int, int> > edges) {
+    int max_node = 0;
+    vector <vector<int> > adjlist;
+    for (pair<int, int> edge : edges) {
+      max_node = max({max_node, edge.first + 1, edge.second + 1});
+    }
+    adjlist.resize(max_node);
+
+    for (pair<int, int> edge : edges) {
+      adjlist[edge.first].push_back(edge.second);
+    }
+    return adjlist;
+  }
 
   double GetTime() {
     struct timeval tv;
@@ -32,8 +41,8 @@ namespace {
     return tv.tv_sec + tv.tv_usec * 1e-6;
   }
 
-  pair<int, double> RunTrials(const function<int(const vector <vector<int> >)>&
-                              func, const int trials) {
+  pair<int, double> RunTrials(vector <vector<int> > adjlist, const function<int(
+                              const vector <vector<int> >)>& func, const int trials) {
     double total_time = 0;
     int diam = 0;
 
@@ -51,6 +60,7 @@ namespace {
 
 int main(int argc, char** argv) {
   int trials = 10;
+  char *filename = (char *)"simple.edges";
   for (int i = 1; i < argc; ++i) {
       if (string(argv[i]) == "--trials") {
           if (i + 1 < argc) {
@@ -59,27 +69,53 @@ int main(int argc, char** argv) {
                 cerr << "--trials option requires one argument." << endl;
               return 1;
           }
+      } else if (string(argv[i]) == "--graph") {
+        if (i + 1 < argc) {
+            filename = argv[i++];
+        } else { // Trial flag called but unspecified
+              cerr << "--graph option requires one argument." << endl;
+            return 1;
+        }
       }
   }
 
-  // Return of format (diameter, average time)
-  const pair<int, double> fast_diam_time =
-                                RunTrials(&Diameter::GetFastDiam, trials);
-  const pair<int, double> brute_diam_time =
-                                RunTrials(&Diameter::GetBruteDiam, trials);
+  vector <pair<int, int> > edges;
+  {
+    FILE *in = fopen(filename, "r");
 
-  printf("Our graph has edges:\n");
-  Diameter::PrintGraph(adjlist);
+    if (in == NULL) {
+        fprintf(stderr, "Can't open edges file\n");
+        return -1;
+    }
 
-  printf("According to the solution by @kawatea,"
-         " the diameter of the graph is: %d \n", fast_diam_time.first);
-  printf("A trivial, yet exact, solution says"
-         " the diameter of the graph is: %d \n", brute_diam_time.first);
-  printf("Both results were the same: %s\n",
-         fast_diam_time.first == brute_diam_time.first ? "true" : "false");
-  printf("This brute force operation was completed in:                      %f seconds \n",
-         brute_diam_time.second);
-  printf("This operation from the paper was completed in:                   %f seconds \n",
-         fast_diam_time.second);
+    for (int from, to; fscanf(in, "%d %d", &from, &to) != EOF; ) {
+      edges.push_back(std::make_pair(from, to));
+    }
+    fclose(in);
+  }
+
+  const vector <vector<int> > adjlist = GenGraph(edges);
+
+  {
+    // Return of format (diameter, average time)
+    const pair<int, double> fast_diam_time =
+                                  RunTrials(adjlist, &Diameter::GetFastDiam, trials);
+    const pair<int, double> brute_diam_time =
+                                  RunTrials(adjlist, &Diameter::GetBruteDiam, trials);
+
+    printf("Our graph has edges:\n");
+    Diameter::PrintGraph(adjlist);
+
+    printf("\nAccording to the solution by @kawatea,"
+           " the diameter of the graph is: %d \n\n", fast_diam_time.first);
+    printf("A trivial, yet exact, solution says"
+           " the diameter of the graph is: %d \n\n", brute_diam_time.first);
+    printf("Both results were the same: %s\n\n",
+           fast_diam_time.first == brute_diam_time.first ? "true" : "false");
+    printf("This brute force operation was completed in:    %f seconds \n\n",
+           brute_diam_time.second);
+    printf("This operation from the paper was completed in: %f seconds \n\n",
+           fast_diam_time.second);
+  }
   return 0;
 }
