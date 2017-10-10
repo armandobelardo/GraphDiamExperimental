@@ -285,7 +285,7 @@ namespace Diameter {
 
   int GetFastDiamParallel(const vector <vector<int> > &adjlist) {
     // Prepare the adjacency list
-    vector <vector <int> > radjlist = Transpose(adjlist);
+    const vector <vector <int> > radjlist = Transpose(adjlist);
     int num_double_sweep = 10, diameter = 0, V = adjlist.size();
 
     // Decompose the graph into strongly connected components
@@ -343,14 +343,11 @@ namespace Diameter {
     }
 
     // Compute the diameter lower bound by the double sweep algorithm
-    int qs, qt;
-    vector <int> dist(V, -1);
-    vector <int> queue(V);
     {
       #pragma omp parallel for reduction(max: diameter)
       for (size_t i = 0; i < num_double_sweep; i++) {
         int source = GetRandom(V);
-
+        printf("%d\n", source);
         // init height to -1 since the algo counts the root as a level though it is
         // technically at height 0.
         int height = -1, rheight = -1, lastInLevel = source;
@@ -358,7 +355,7 @@ namespace Diameter {
         // forward BFS
         deque<int> lineup {source};
         {
-          vector<bool> visited(adjlist.size(), false);
+          vector<bool> visited(V, false);
           visited[source] = true;
 
           while (!lineup.empty()) {
@@ -382,7 +379,7 @@ namespace Diameter {
         {
           source = lastInLevel;
           lineup.push_back(source);
-          vector<bool> visited(radjlist.size(), false);
+          vector<bool> visited(V, false);
           visited[source] = true;
 
           while (!lineup.empty()) {
@@ -408,7 +405,6 @@ namespace Diameter {
     // Order vertices
     vector <pair<long long, int> > order(V);
     {
-        #pragma omp parallel for
         for (size_t v = 0; v < V; v++) {
             size_t in = 0, out = 0;
 
@@ -431,6 +427,9 @@ namespace Diameter {
 
     // Examine every vertex
     vector <int> ecc(V, V);
+    int qs, qt;
+    vector <int> dist(V, -1);
+    vector <int> queue(V);
     {
         for (size_t i = 0; i < V; i++) {
             int u = order[i].second;

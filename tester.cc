@@ -59,7 +59,7 @@ namespace {
 } // end namespace
 
 int main(int argc, char** argv) {
-  int trials = 1; // attempt to normalize runs
+  int trials = 10; // attempt to normalize runs
   char *filename = (char *)"graphs/simple.edges";
   bool run_slow = true;
   for (int i = 1; i < argc; ++i) {
