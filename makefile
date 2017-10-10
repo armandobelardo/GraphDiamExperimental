@@ -1,15 +1,15 @@
-CXX=clang++
-CXXFLAGS=-g -std=c++11 -Wall
+CXX=g++-7
+CXXFLAGS=-g -std=c++11 -fopenmp -lgomp
 BIN=tester
 
 SRC=$(wildcard *.cc)
 OBJ=$(SRC:%.cc=%.o)
 
 all: $(OBJ)
-	$(CXX) -o $(BIN) $^
+	$(CXX) $(CXXFLAGS) -o $(BIN) $^
 
 %.o: %.c
-	$(CXX) $@ -c $<
+	$(CXX) $(CXXFLAGS) $@ -c $<
 
 clean:
 	rm -f *.o
