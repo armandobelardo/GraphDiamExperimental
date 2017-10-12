@@ -392,7 +392,7 @@ namespace Diameter{
     const pvector <pvector<int> > radjlist = Transpose(adjlist);
 
     #pragma omp parallel for reduction(max: diameter)
-    for (size_t i = 0; i < 1; i++) {
+    for (size_t i = 0; i < adjlist.size(); i++) {
       diameter = BFSHeightParallel(adjlist, radjlist, i);
     }
     return diameter;

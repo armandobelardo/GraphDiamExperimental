@@ -277,7 +277,7 @@ namespace Diameter {
   int GetBruteDiam(const vector <vector<int> > &adjlist) {
     int diameter = 0;
 
-    for (size_t i = 0; i < 1; i++) {
+    for (size_t i = 0; i < adjlist.size(); i++) {
       diameter = max(diameter, BFSHeight(adjlist, i));
     }
     return diameter;
