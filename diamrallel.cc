@@ -21,7 +21,7 @@ namespace Parallel { // Collection of necessary helper functions from @sbeamer
     next.reset();
     #pragma omp parallel for reduction(+ : awake_count) schedule(dynamic, 1024)
     for (int u=0; u < radjlist.size(); u++) {
-      if (distance[u] < 0) {
+      if (distance[u] < 0) { // find unvisited
         for (int v : radjlist[u]) {
           if (queue.get_bit(v)) { // if parent is in the queue
             distance[u] = distance[v] + 1;
@@ -127,10 +127,9 @@ namespace {
         queue.slide_window();
       }
     }
-    int dist;
+    int dist = 0;
     #pragma omp parallel for reduction(max: dist)
-    for (int n = 0; n < adjlist.size(); n++)
-      dist = distance[n];
+    for (int n = 0; n < distance.size(); n++) dist = distance[n];
 
     return dist;
   }
