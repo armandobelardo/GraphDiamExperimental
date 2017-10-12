@@ -15,7 +15,7 @@ using namespace std;
 
 namespace Parallel { // Collection of necessary helper functions from @sbeamer
   // Bottom Up step in BFS from @sbeamer, variable names changed for continuity
-  int BottomUp(const vector <vector<int> > &radjlist, pvector<int> &distance,
+  int BottomUp(const pvector <pvector<int> > &radjlist, pvector<int> &distance,
                Bitmap &queue, Bitmap &next) {
     int awake_count = 0;
     next.reset();
@@ -36,7 +36,7 @@ namespace Parallel { // Collection of necessary helper functions from @sbeamer
   }
 
   // Top Down step in BFS from @sbeamer, variable names changed for continuity
-  int TopDown(const vector <vector<int> > &adjlist, pvector<int> &distance,
+  int TopDown(const pvector <pvector<int> > &adjlist, pvector<int> &distance,
               SlidingQueue<int> &queue) {
     int scout_count = 0;
     #pragma omp parallel
@@ -68,7 +68,7 @@ namespace Parallel { // Collection of necessary helper functions from @sbeamer
     }
   }
 
-  void BitmapToQueue(const vector <vector<int> > &adjlist, const Bitmap &bm,
+  void BitmapToQueue(const pvector <pvector<int> > &adjlist, const Bitmap &bm,
                      SlidingQueue<int> &queue) {
     #pragma omp parallel
     {
@@ -84,16 +84,16 @@ namespace Parallel { // Collection of necessary helper functions from @sbeamer
 } // end namespace parallel
 
 namespace {
-  int NumEdges(const vector <vector<int> > &adjlist) {
+  int NumEdges(const pvector <pvector<int> > &adjlist) {
     int count = 0;
-    for (vector<int> edges : adjlist) {
-      count += edges.size();
+    for (size_t i = 0; i < adjlist.size(); i++) {
+      count += adjlist[i].size();
     }
     return count;
   }
 
-  int BFSHeightParallel(const vector <vector<int> > &adjlist,
-                        const vector <vector<int> > &radjlist, int source) {
+  int BFSHeightParallel(const pvector <pvector<int> > &adjlist,
+                        const pvector <pvector<int> > &radjlist, int source) {
     int alpha = 15, beta = 18;
 
     pvector<int> distance(adjlist.size(), -1);
@@ -135,8 +135,8 @@ namespace {
     return dist;
   }
 
-  vector<vector<int> > Transpose(const vector <vector<int> > &adjlist) {
-    vector< vector<int> > transposed(adjlist.size());
+  pvector<pvector<int> > Transpose(const pvector <pvector<int> > &adjlist) {
+    pvector< pvector<int> > transposed(adjlist.size());
     for (size_t i = 0; i < adjlist.size(); i++) {
       for (int neighbor : adjlist[i]) {
         transposed[neighbor].push_back(i);
@@ -163,6 +163,20 @@ namespace {
 } // end namespace
 
 namespace Diameter{
+  pvector <pvector<int> > BuildTSGraph(const vector <pair<int, int> > &edges) {
+    int max_node = 0;
+    for (pair<int, int> edge : edges) {
+      max_node = max({max_node, edge.first + 1, edge.second + 1});
+    }
+    pvector <pvector<int> > adjlist(max_node);
+
+    for (pair<int, int> edge : edges) {
+      adjlist[edge.first].push_back(edge.second);
+    }
+    return adjlist;
+  }
+
+  /*
   int GetFastDiamParallel(const vector <vector<int> > &adjlist) {
     // Prepare the adjacency list
     vector <vector <int> > radjlist = Transpose(adjlist);
@@ -372,13 +386,14 @@ namespace Diameter{
     }
     return diameter;
   }
+  */
 
-  int GetBruteDiamParallel(const vector <vector<int> > &adjlist) {
+  int GetBruteDiamParallel(const pvector <pvector<int> > &adjlist) {
     int diameter = 0;
-    const vector <vector<int> > radjlist = Transpose(adjlist);
+    const pvector <pvector<int> > radjlist = Transpose(adjlist);
 
     #pragma omp parallel for reduction(max: diameter)
-    for (size_t i = 0; i < adjlist.size(); i++) {
+    for (size_t i = 0; i < 1; i++) {
       diameter = BFSHeightParallel(adjlist, radjlist, i);
     }
     return diameter;

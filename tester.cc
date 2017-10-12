@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstdlib>
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <stdlib.h>
@@ -11,18 +12,22 @@
 using namespace std;
 
 namespace {
-  vector <vector<int> > GenPath(int pathlen) {
-    vector <vector<int> > path;
+  // Work around for lack of pvector constructor disallowing function ptr call
+  enum FuncEnum {SLOW_PARA};
+
+  void GenPath(int pathlen) {
+    printf("in here\n");
+    ofstream pathFile;
+    pathFile.open("graphs/path.edges");
     for (int i = 0; i < pathlen; i++) {
-      path.push_back({i+1});
+      pathFile << i << " " << i + 1 << "\n";
     }
-    path.push_back({}); // in path last vertex has no edges
-    return path;
+    pathFile.close();
   }
 
   // Note that if a vertex has no neighbors we must include an empty vector
   // since we use index in outer vector to determine vertex number.
-  vector <vector<int> > GenGraph(vector <pair<int, int> > edges) {
+  vector <vector<int> > GenGraph(const vector <pair<int, int> > &edges) {
     int max_node = 0;
     vector <vector<int> > adjlist;
     for (pair<int, int> edge : edges) {
@@ -42,7 +47,8 @@ namespace {
     return tv.tv_sec + tv.tv_usec * 1e-6;
   }
 
-  pair<int, double> RunTrials(vector <vector<int> > adjlist, const function<int(
+  // TODO(iamabel): normalize how we call functions (enum vs. func ptr)
+  pair<int, double> RunTrials(const vector <vector<int> > &adjlist, const function<int(
                               const vector <vector<int> >)>& func, const int trials) {
     double total_time = 0;
     int diam = 0;
@@ -55,6 +61,26 @@ namespace {
       start = end;
     }
 
+    return make_pair(diam, total_time/trials);
+  }
+
+  pair<int, double> RunTrials(const pvector <pvector<int> > &padjlist, FuncEnum func, const int trials) {
+    double total_time = 0;
+    int diam = 0;
+
+    double start = GetTime();
+    for (int i = 0; i < trials; i++) {
+      switch (func) {
+        case SLOW_PARA:
+          diam = Diameter::GetBruteDiamParallel(padjlist);
+          break;
+        default:
+          return make_pair(-1,-1);
+      }
+      double end = GetTime();
+      total_time += end - start;
+      start = end;
+    }
     return make_pair(diam, total_time/trials);
   }
 } // end namespace
@@ -98,7 +124,12 @@ int main(int argc, char** argv) {
     fclose(in);
   }
 
-  const vector <vector<int> > adjlist = GenPath(1000);
+  const vector <vector<int> > adjlist = GenGraph(edges);
+  pvector< pvector<int> > padjlist;
+  if (run_para_slow) {
+     padjlist = Diameter::BuildTSGraph(edges);
+  }
+
   {
     // Return of format (diameter, average time)
     printf("Our graph is from file:  %s\n", filename);
@@ -122,7 +153,7 @@ int main(int argc, char** argv) {
     }
     if (run_para_slow) {
       brute_para_diam_time =
-                     RunTrials(adjlist, &Diameter::GetBruteDiamParallel, trials);
+                     RunTrials(padjlist, SLOW_PARA, trials);
       printf("The experimental, yet trivial solution says"
              " the diameter of the graph is: %d \n\n", brute_para_diam_time.first);
       printf("This parallelized brute force operation was completed in:    %f seconds \n\n",
