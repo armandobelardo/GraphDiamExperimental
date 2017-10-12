@@ -6,6 +6,7 @@
 #include <sys/time.h>
 #include <vector>
 #include "diameter.h"
+#include "diamrallel.h"
 
 using namespace std;
 
@@ -61,7 +62,7 @@ namespace {
 int main(int argc, char** argv) {
   int trials = 10; // attempt to normalize runs
   char *filename = (char *)"graphs/simple.edges";
-  bool run_slow = true;
+  bool run_paper = false, run_slow = false, run_para_slow = false;
   for (int i = 1; i < argc; ++i) {
       if (string(argv[i]) == "--trials") {
           if (i + 1 < argc) {
@@ -77,7 +78,9 @@ int main(int argc, char** argv) {
               cerr << "--graph option requires one argument." << endl;
             return 1;
         }
-      } else if (string(argv[i]) == "--noslow") run_slow = false;
+      } else if (string(argv[i]) == "--paper") run_paper = true;
+      else if (string(argv[i]) == "--slow") run_slow = true;
+      else if (string(argv[i]) == "--para_slow") run_para_slow = true;
   }
 
   vector <pair<int, int> > edges;
@@ -95,36 +98,36 @@ int main(int argc, char** argv) {
     fclose(in);
   }
 
-  const vector <vector<int> > adjlist = GenGraph(edges);
+  const vector <vector<int> > adjlist = GenPath(1000);
   {
     // Return of format (diameter, average time)
-    const pair<int, double> fast_diam_time =
-                                  RunTrials(adjlist, &Diameter::GetFastDiam, trials);
-    const pair<int, double> parallel_diam_time =
-                                  RunTrials(adjlist, &Diameter::GetFastDiamParallel, trials);
-    pair<int, double> brute_diam_time;
-    if (run_slow) {
-      brute_diam_time = RunTrials(adjlist, &Diameter::GetBruteDiam, trials);
-    }
-
     printf("Our graph is from file:  %s\n", filename);
 
-    printf("\nAccording to the solution by @kawatea,"
-           " the diameter of the graph is: %d \n\n", fast_diam_time.first);
-    printf("\nAccording to the parallel solution,"
-           " the diameter of the graph is: %d \n\n", parallel_diam_time.first);
+    pair<int, double> fast_diam_time;
+    pair<int, double> brute_para_diam_time;
+    pair<int, double> brute_diam_time;
+    if (run_paper) {
+      fast_diam_time = RunTrials(adjlist, &Diameter::GetFastDiam, trials);
+      printf("\nAccording to the solution by @kawatea,"
+             " the diameter of the graph is: %d \n\n", fast_diam_time.first);
+      printf("This operation from the paper was completed in:              %f seconds \n",
+             fast_diam_time.second);
+    }
     if (run_slow) {
+      brute_diam_time = RunTrials(adjlist, &Diameter::GetBruteDiam, trials);
       printf("A trivial, yet exact, solution says"
              " the diameter of the graph is: %d \n\n", brute_diam_time.first);
-      printf("Both results were the same: %s\n\n",
-             fast_diam_time.first == brute_diam_time.first ? "true" : "false");
       printf("This brute force operation was completed in:                 %f seconds \n\n",
              brute_diam_time.second);
     }
-    printf("This operation from the paper was completed in:              %f seconds \n",
-           fast_diam_time.second);
-    printf("This parallelized operation from the paper was completed in: %f seconds \n",
-           parallel_diam_time.second);
+    if (run_para_slow) {
+      brute_para_diam_time =
+                     RunTrials(adjlist, &Diameter::GetBruteDiamParallel, trials);
+      printf("The experimental, yet trivial solution says"
+             " the diameter of the graph is: %d \n\n", brute_para_diam_time.first);
+      printf("This parallelized brute force operation was completed in:    %f seconds \n\n",
+             brute_para_diam_time.second);
+    }
   }
   return 0;
 }

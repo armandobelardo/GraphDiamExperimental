@@ -13,8 +13,7 @@ namespace Diameter {
 
   int GetBruteDiam(const vector <vector<int> > &adjlist);
 
-  int GetFastDiamParallel(const vector <vector<int> > &adjlist);
-
+  // Debugging purposes
   void PrintGraph(const vector <vector<int> > &adjlist);
 } // end namespace Diameter
 # endif

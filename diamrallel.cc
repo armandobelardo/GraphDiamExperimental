@@ -6,33 +6,133 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <vector>
-#include "diameter.h"
+#include "ForParallelFromBeamer/bitmap.h"
+#include "ForParallelFromBeamer/pvector.h"
+#include "ForParallelFromBeamer/sliding_queue.h"
+#include "diamrallel.h"
 
-namespace {
-  int BFSHeight(const vector <vector<int> > &adjlist, int source) {
-    deque<int> lineup {source};
-    vector<bool> visited(adjlist.size(), false);
-    visited[source] = true;
-    // init height to -1 since the algo counts the root as a level though it is
-    // technically at height 0.
-    int height = -1, lastInLevel = source;
+using namespace std;
 
-    while (!lineup.empty()) {
-      int curr = lineup.front();
-      lineup.pop_front();
-
-      for (int neighbor : adjlist[curr]) {
-        if (!visited[neighbor]) {
-          visited[neighbor] = true;
-          lineup.push_back(neighbor);
+namespace Parallel { // Collection of necessary helper functions from @sbeamer
+  // Bottom Up step in BFS from @sbeamer, variable names changed for continuity
+  int BottomUp(const vector <vector<int> > &radjlist, pvector<int> &distance,
+               Bitmap &queue, Bitmap &next) {
+    int awake_count = 0;
+    next.reset();
+    #pragma omp parallel for reduction(+ : awake_count) schedule(dynamic, 1024)
+    for (int u=0; u < radjlist.size(); u++) {
+      if (distance[u] < 0) {
+        for (int v : radjlist[u]) {
+          if (queue.get_bit(v)) { // if parent is in the queue
+            distance[u] = distance[v] + 1;
+            awake_count++;
+            next.set_bit(u);
+            break;
+          }
         }
       }
-      if (lastInLevel == curr) {
-        height++;
-        lastInLevel = lineup.back();
+    }
+    return awake_count;
+  }
+
+  // Top Down step in BFS from @sbeamer, variable names changed for continuity
+  int TopDown(const vector <vector<int> > &adjlist, pvector<int> &distance,
+              SlidingQueue<int> &queue) {
+    int scout_count = 0;
+    #pragma omp parallel
+    {
+      QueueBuffer<int> lqueue(queue);
+      #pragma omp for reduction(+ : scout_count)
+      for (auto q_iter = queue.begin(); q_iter < queue.end(); q_iter++) {
+        int u = *q_iter;
+        for (int v : adjlist[u]) {
+          int curr_val = distance[v];
+          if (curr_val < 0) {
+            if (compare_and_swap(distance[v], curr_val, (distance[u] + 1))) {
+              lqueue.push_back(v);
+              scout_count += -curr_val;
+            }
+          }
+        }
+      }
+      lqueue.flush();
+    }
+    return scout_count;
+  }
+
+  void QueueToBitmap(const SlidingQueue<int> &queue, Bitmap &bm) {
+    #pragma omp parallel for
+    for (auto q_iter = queue.begin(); q_iter < queue.end(); q_iter++) {
+      int u = *q_iter;
+      bm.set_bit_atomic(u);
+    }
+  }
+
+  void BitmapToQueue(const vector <vector<int> > &adjlist, const Bitmap &bm,
+                     SlidingQueue<int> &queue) {
+    #pragma omp parallel
+    {
+      QueueBuffer<int> lqueue(queue);
+      #pragma omp for
+      for (int n=0; n < adjlist.size(); n++)
+        if (bm.get_bit(n))
+          lqueue.push_back(n);
+      lqueue.flush();
+    }
+    queue.slide_window();
+  }
+} // end namespace parallel
+
+namespace {
+  int NumEdges(const vector <vector<int> > &adjlist) {
+    int count = 0;
+    for (vector<int> edges : adjlist) {
+      count += edges.size();
+    }
+    return count;
+  }
+
+  int BFSHeightParallel(const vector <vector<int> > &adjlist,
+                        const vector <vector<int> > &radjlist, int source) {
+    int alpha = 15, beta = 18;
+
+    pvector<int> distance(adjlist.size(), -1);
+    distance[source] = 0;
+    SlidingQueue<int> queue(adjlist.size());
+    queue.push_back(source);
+    queue.slide_window();
+    Bitmap curr(adjlist.size());
+    curr.reset();
+    Bitmap front(adjlist.size());
+    front.reset();
+    int edges_to_check = NumEdges(adjlist); // TODO
+    int scout_count = adjlist[source].size();
+    while (!queue.empty()) {
+      if (scout_count > edges_to_check / alpha) {
+        int awake_count, old_awake_count;
+        Parallel::QueueToBitmap(queue, front);
+        awake_count = queue.size();
+        queue.slide_window();
+        do {
+          old_awake_count = awake_count;
+          awake_count = Parallel::BottomUp(radjlist, distance, front, curr);
+          front.swap(curr);
+        } while ((awake_count >= old_awake_count) ||
+                 (awake_count > adjlist.size() / beta));
+        Parallel::BitmapToQueue(adjlist, front, queue);
+        scout_count = 1;
+      } else {
+        edges_to_check -= scout_count;
+        scout_count = Parallel::TopDown(adjlist, distance, queue);
+        queue.slide_window();
       }
     }
-    return height;
+    int dist;
+    #pragma omp parallel for reduction(max: dist)
+    for (int n = 0; n < adjlist.size(); n++)
+      dist = distance[n];
+
+    return dist;
   }
 
   vector<vector<int> > Transpose(const vector <vector<int> > &adjlist) {
@@ -62,9 +162,8 @@ namespace {
   }
 } // end namespace
 
-namespace Diameter {
-  // Code as from @kawatea on GitHub <3
-  int GetFastDiam(const vector <vector<int> > &adjlist) {
+namespace Diameter{
+  int GetFastDiamParallel(const vector <vector<int> > &adjlist) {
     // Prepare the adjacency list
     vector <vector <int> > radjlist = Transpose(adjlist);
     int num_double_sweep = 10, diameter = 0, V = adjlist.size();
@@ -274,20 +373,14 @@ namespace Diameter {
     return diameter;
   }
 
-  int GetBruteDiam(const vector <vector<int> > &adjlist) {
+  int GetBruteDiamParallel(const vector <vector<int> > &adjlist) {
     int diameter = 0;
+    const vector <vector<int> > radjlist = Transpose(adjlist);
 
+    #pragma omp parallel for reduction(max: diameter)
     for (size_t i = 0; i < adjlist.size(); i++) {
-      diameter = max(diameter, BFSHeight(adjlist, i));
+      diameter = BFSHeightParallel(adjlist, radjlist, i);
     }
     return diameter;
-  }
-
-  void PrintGraph(const vector <vector<int> > &adjlist) {
-    for (size_t i = 0; i < adjlist.size(); i++) {
-      for (int neighbor : adjlist[i]) {
-          printf("%d --> %d\n", i, neighbor);
-      }
-    }
   }
 } // end namespace Diameter

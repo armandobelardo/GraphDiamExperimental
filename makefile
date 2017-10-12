@@ -1,5 +1,5 @@
 CXX=g++-7
-CXXFLAGS=-g -std=c++11 -fopenmp -lgomp
+CXXFLAGS=-g -std=c++11 -fopenmp
 BIN=tester
 
 SRC=$(wildcard *.cc)
