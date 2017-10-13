@@ -10,7 +10,7 @@
 using namespace std;
 
 namespace Diameter {
-  int GetFastDiamParallel(const vector <vector<int> > &adjlist);
+  int GetFastDiamParallel(const pvector <pvector<int> > &adjlist);
 
   int GetBruteDiamParallel(const pvector <pvector<int> > &adjlist);
 

@@ -92,8 +92,9 @@ namespace {
     return count;
   }
 
-  int BFSHeightParallel(const pvector <pvector<int> > &adjlist,
-                        const pvector <pvector<int> > &radjlist, int source) {
+  pair<int,int> BFSHeightParallel(const pvector <pvector<int> > &adjlist,
+                                  const pvector <pvector<int> > &radjlist,
+                                  int source) {
     int alpha = 15, beta = 18;
 
     pvector<int> distance(adjlist.size(), -1);
@@ -105,7 +106,7 @@ namespace {
     curr.reset();
     Bitmap front(adjlist.size());
     front.reset();
-    int edges_to_check = NumEdges(adjlist); // TODO
+    int edges_to_check = NumEdges(adjlist);
     int scout_count = adjlist[source].size();
     while (!queue.empty()) {
       if (scout_count > edges_to_check / alpha) {
@@ -127,11 +128,15 @@ namespace {
         queue.slide_window();
       }
     }
-    int dist = 0;
-    #pragma omp parallel for reduction(max: dist)
-    for (int n = 0; n < distance.size(); n++) dist = distance[n];
-
-    return dist;
+    int dist = 0, last_node = 0;
+    for (int n = 0; n < distance.size(); n++) {
+      dist = max(dist, distance[n]);
+      if (distance[n] > dist) {
+        last_node = n;
+        dist = distance[n];
+      }
+    }
+    return make_pair(dist, last_node);
   }
 
   pvector<pvector<int> > Transpose(const pvector <pvector<int> > &adjlist) {
@@ -175,19 +180,18 @@ namespace Diameter{
     return adjlist;
   }
 
-  /*
-  int GetFastDiamParallel(const vector <vector<int> > &adjlist) {
+  int GetFastDiamParallel(const pvector <pvector<int> > &adjlist) {
     // Prepare the adjacency list
-    vector <vector <int> > radjlist = Transpose(adjlist);
+    pvector <pvector <int> > radjlist = Transpose(adjlist);
     int num_double_sweep = 10, diameter = 0, V = adjlist.size();
 
     // Decompose the graph into strongly connected components
-    vector <int> scc(V);
+    pvector <int> scc(V);
     {
         int num_visit = 0, num_scc = 0;
-        vector <int> ord(V, -1);
-        vector <int> low(V);
-        vector <bool> in(V, false);
+        pvector <int> ord(V, -1);
+        pvector <int> low(V);
+        pvector <bool> in(V, false);
         stack <int> s;
         stack <pair<int, int> > dfs;
 
@@ -236,56 +240,23 @@ namespace Diameter{
     }
 
     // Compute the diameter lower bound by the double sweep algorithm
-    int qs, qt;
-    vector <int> dist(V, -1);
-    vector <int> queue(V);
     {
         for (size_t i = 0; i < num_double_sweep; i++) {
             int start = GetRandom(V);
 
             // forward BFS
-            qs = qt = 0;
-            dist[start] = 0;
-            queue[qt++] = start;
-
-            while (qs < qt) {
-                int v = queue[qs++];
-
-                for (size_t j = 0; j < adjlist[v].size(); j++) {
-                    if (dist[adjlist[v][j]] < 0) {
-                        dist[adjlist[v][j]] = dist[v] + 1;
-                        queue[qt++] = adjlist[v][j];
-                    }
-                }
-            }
-
-            for (int j = 0; j < qt; j++) dist[queue[j]] = -1;
+            pair<int,int> dist_node = BFSHeightParallel(adjlist, radjlist, start);
 
             // backward BFS
-            start = queue[qt - 1];
-            qs = qt = 0;
-            dist[start] = 0;
-            queue[qt++] = start;
+            start = dist_node.second;
+            diameter = dist_node.first;
 
-            while (qs < qt) {
-                int v = queue[qs++];
-
-                for (size_t j = 0; j < radjlist[v].size(); j++) {
-                    if (dist[radjlist[v][j]] < 0) {
-                        dist[radjlist[v][j]] = dist[v] + 1;
-                        queue[qt++] = radjlist[v][j];
-                    }
-                }
-            }
-
-            diameter = max(diameter, dist[queue[qt - 1]]);
-
-            for (int j = 0; j < qt; j++) dist[queue[j]] = -1;
+            diameter = max(diameter, BFSHeightParallel(radjlist, adjlist, start).first);
         }
     }
 
     // Order vertices
-    vector <pair<long long, int> > order(V);
+    pvector <pair<long long, int> > order(V);
     {
         for (int v = 0; v < V; v++) {
             size_t in = 0, out = 0;
@@ -307,7 +278,10 @@ namespace Diameter{
     }
 
     // Examine every vertex
-    vector <int> ecc(V, V);
+    int qs, qt;
+    pvector <int> dist(V, -1);
+    pvector <int> queue(V);
+    pvector <int> ecc(V, V);
     {
         for (size_t i = 0; i < V; i++) {
             int u = order[i].second;
@@ -316,7 +290,7 @@ namespace Diameter{
 
             // Refine the eccentricity upper bound
             int ub = 0;
-            vector <pair<int, int> > neighbors;
+            pvector <pair<int, int> > neighbors;
 
             for (size_t j = 0; j < adjlist[u].size(); j++) neighbors.push_back(make_pair(scc[adjlist[u][j]], ecc[adjlist[u][j]] + 1));
 
@@ -385,7 +359,6 @@ namespace Diameter{
     }
     return diameter;
   }
-  */
 
   int GetBruteDiamParallel(const pvector <pvector<int> > &adjlist) {
     int diameter = 0;
@@ -393,7 +366,7 @@ namespace Diameter{
 
     #pragma omp parallel for reduction(max: diameter)
     for (size_t i = 0; i < adjlist.size(); i++) {
-      diameter = BFSHeightParallel(adjlist, radjlist, i);
+      diameter = max(diameter, BFSHeightParallel(adjlist, radjlist, i).first);
     }
     return diameter;
   }

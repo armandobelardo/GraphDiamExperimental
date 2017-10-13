@@ -13,10 +13,9 @@ using namespace std;
 
 namespace {
   // Work around for lack of pvector constructor disallowing function ptr call
-  enum FuncEnum {SLOW_PARA};
+  enum FuncEnum {SLOW_PARA, PAPER_PARA};
 
   void GenPath(int pathlen) {
-    printf("in here\n");
     ofstream pathFile;
     pathFile.open("graphs/path.edges");
     for (int i = 0; i < pathlen; i++) {
@@ -74,6 +73,9 @@ namespace {
         case SLOW_PARA:
           diam = Diameter::GetBruteDiamParallel(padjlist);
           break;
+        case PAPER_PARA:
+          diam = Diameter::GetFastDiamParallel(padjlist);
+          break;
         default:
           return make_pair(-1,-1);
       }
@@ -88,7 +90,7 @@ namespace {
 int main(int argc, char** argv) {
   int trials = 10; // attempt to normalize runs
   char *filename = (char *)"graphs/simple.edges";
-  bool run_paper = false, run_slow = false, run_para_slow = false;
+  bool run_paper = false, run_slow = false, run_para_slow = false, run_para_paper = false;
   for (int i = 1; i < argc; ++i) {
       if (string(argv[i]) == "--trials") {
           if (i + 1 < argc) {
@@ -107,6 +109,7 @@ int main(int argc, char** argv) {
       } else if (string(argv[i]) == "--paper") run_paper = true;
       else if (string(argv[i]) == "--slow") run_slow = true;
       else if (string(argv[i]) == "--para_slow") run_para_slow = true;
+      else if (string(argv[i]) == "--para_paper") run_para_paper = true;
   }
 
   vector <pair<int, int> > edges;
@@ -123,10 +126,9 @@ int main(int argc, char** argv) {
     }
     fclose(in);
   }
-
   const vector <vector<int> > adjlist = GenGraph(edges);
   pvector< pvector<int> > padjlist;
-  if (run_para_slow) {
+  if (run_para_slow || run_para_paper) {
      padjlist = Diameter::BuildTSGraph(edges);
   }
 
@@ -134,30 +136,34 @@ int main(int argc, char** argv) {
     // Return of format (diameter, average time)
     printf("Our graph is from file:  %s\n", filename);
 
-    pair<int, double> fast_diam_time;
-    pair<int, double> brute_para_diam_time;
-    pair<int, double> brute_diam_time;
+    pair<int, double> fast_diam_time, brute_para_diam_time, brute_diam_time, paper_para_diam_time;
     if (run_paper) {
       fast_diam_time = RunTrials(adjlist, &Diameter::GetFastDiam, trials);
       printf("\nAccording to the solution by @kawatea,"
              " the diameter of the graph is: %d \n\n", fast_diam_time.first);
-      printf("This operation from the paper was completed in:              %f seconds \n",
+      printf("This operation from the paper was completed in:               %f seconds \n\n",
              fast_diam_time.second);
     }
     if (run_slow) {
       brute_diam_time = RunTrials(adjlist, &Diameter::GetBruteDiam, trials);
       printf("A trivial, yet exact, solution says"
              " the diameter of the graph is: %d \n\n", brute_diam_time.first);
-      printf("This brute force operation was completed in:                 %f seconds \n\n",
+      printf("This brute force operation was completed in:                  %f seconds \n\n",
              brute_diam_time.second);
     }
     if (run_para_slow) {
-      brute_para_diam_time =
-                     RunTrials(padjlist, SLOW_PARA, trials);
+      brute_para_diam_time = RunTrials(padjlist, SLOW_PARA, trials);
       printf("The experimental, yet trivial solution says"
              " the diameter of the graph is: %d \n\n", brute_para_diam_time.first);
-      printf("This parallelized brute force operation was completed in:    %f seconds \n\n",
+      printf("This parallelized brute force operation was completed in:     %f seconds \n\n",
              brute_para_diam_time.second);
+    }
+    if (run_para_paper) {
+      paper_para_diam_time = RunTrials(padjlist, PAPER_PARA, trials);
+      printf("The experimental, paper-modifying solution says"
+             " the diameter of the graph is: %d \n\n", paper_para_diam_time.first);
+      printf("This parallelized paper-modifying operation was completed in: %f seconds \n\n",
+             paper_para_diam_time.second);
     }
   }
   return 0;
