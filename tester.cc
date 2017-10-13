@@ -15,6 +15,24 @@ namespace {
   // Work around for lack of pvector constructor disallowing function ptr call
   enum FuncEnum {SLOW_PARA, PAPER_PARA};
 
+  void GenStar(int starsize) {
+    ofstream starFile;
+    starFile.open("graphs/star.edges");
+    for (int i = 0; i < starsize; i++) {
+      for (int j = 0; j < starsize; j++) {
+        if (i != j) {
+          starFile << i << " " << j << "\n";
+        }
+      }
+    }
+    for (int i = starsize; i < 2*starsize; i++) {
+      for (int j = 0; j < starsize; j++) {
+        // connect every "angle" node to every edge in the maximal subgraph
+        starFile << i << " " << j << "\n";
+      }
+    }
+  }
+
   void GenPath(int pathlen) {
     ofstream pathFile;
     pathFile.open("graphs/path.edges");
@@ -22,6 +40,19 @@ namespace {
       pathFile << i << " " << i + 1 << "\n";
     }
     pathFile.close();
+  }
+
+  void GenMaximal(int size) {
+    ofstream maximalFile;
+    maximalFile.open("graphs/maximal.edges");
+    for (int i = 0; i < size; i++) {
+      for (int j = 0; j < size; j++) {
+        if (i != j) {
+          maximalFile << i << " " << j << "\n";
+        }
+      }
+    }
+    maximalFile.close();
   }
 
   // Note that if a vertex has no neighbors we must include an empty vector

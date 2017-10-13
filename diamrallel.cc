@@ -316,25 +316,9 @@ namespace Diameter{
             }
 
             // Conduct a BFS and update bounds
-            qs = qt = 0;
-            dist[u] = 0;
-            queue[qt++] = u;
-
-            while (qs < qt) {
-                int v = queue[qs++];
-
-                for (size_t j = 0; j < adjlist[v].size(); j++) {
-                    if (dist[adjlist[v][j]] < 0) {
-                        dist[adjlist[v][j]] = dist[v] + 1;
-                        queue[qt++] = adjlist[v][j];
-                    }
-                }
-            }
-
-            ecc[u] = dist[queue[qt - 1]];
+            pair<int,int> dist_node = BFSHeightParallel(adjlist, radjlist, u);
+            ecc[u] = dist_node.first;
             diameter = max(diameter, ecc[u]);
-
-            for (int j = 0; j < qt; j++) dist[queue[j]] = -1;
 
             qs = qt = 0;
             dist[u] = 0;
